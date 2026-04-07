@@ -1,28 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function GameScreen() {
   const [posicao, setPosicao] = useState({ x: 50, y: 50 });
-  const [comandoTexto, setComandoTexto] = useState(''); // O que o usuário digita
+  const [comandoTexto, setComandoTexto] = useState('');
   const [status, setStatus] = useState('Aguardando comandos...');
+  
+  // 1. Chave de controle: useRef mantém o valor entre renderizações sem resetar
+  const executando = useRef(false);
   const passo = 40;
 
-  // Função para esperar (delay) entre os movimentos
   const esperar = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+  // 2. Função para desligar a chave
+  const pararExecucao = () => {
+    executando.current = false;
+    setStatus('Execução interrompida!');
+  };
+
   const executarCodigo = async () => {
+    if (executando.current) return; // Evita rodar dois ao mesmo tempo
+    
+    executando.current = true;
     const linhas = comandoTexto.split('\n').filter(l => l.trim() !== '');
     const querRepetir = comandoTexto.toLowerCase().includes('repetir()');
     
     setStatus('Executando programa...');
 
-    // O loop 'do...while' garante que execute pelo menos uma vez
-    // e continue se houver 'repetir()' no texto
     do {
       for (const linha of linhas) {
+        // 3. Verificação crítica: se a chave desligar, sai do loop imediatamente
+        if (!executando.current) break;
+
         const textoLimpo = linha.trim().toLowerCase();
-        
-        // 1. REGEX: Procura algo como "nome(numero)" ou "nome()"
         const match = textoLimpo.match(/(\w+)\((\d*)\)/);
 
         if (match) {
@@ -30,7 +40,8 @@ export default function GameScreen() {
           const vezes = match[2] === "" ? 1 : parseInt(match[2]);
 
           for (let i = 0; i < vezes; i++) {
-            await esperar(300);
+            if (!executando.current) break; // Checa de novo dentro do laço de repetição
+            await esperar(200);
 
             setPosicao((atual) => {
               if (comando === 'subir') return { ...atual, y: atual.y - passo };
@@ -42,27 +53,29 @@ export default function GameScreen() {
           }
         } else if (textoLimpo !== 'repetir()') {
           setStatus(`Erro de sintaxe em: ${linha}`);
-          return; // Para tudo se houver erro
+          executando.current = false;
+          return;
         }
       }
       
-      // Pequena pausa entre ciclos de repetição para não travar
       if (querRepetir) await esperar(100);
 
-    } while (querRepetir);
+    } while (querRepetir && executando.current); // Só repete se a chave estiver ligada
     
-    setComandoTexto(''); // Limpa o terminal ao finalizar
-    setStatus('Missão cumprida!');
+    if (executando.current) {
+      setComandoTexto(''); 
+      setStatus('Missão cumprida!');
+    }
+    
+    executando.current = false; // Desliga a chave ao final
   };
 
   return (
     <View style={styles.container}>
-      {/* AREA DO JOGO (GRID) */}
       <View style={styles.areaJogo}>
         <View style={[styles.robo, { left: posicao.x, top: posicao.y }]} />
       </View>
 
-      {/* TERMINAL NA PARTE DE BAIXO */}
       <View style={styles.terminalContainer}>
         <Text style={styles.tituloTerminal}>CONSOLE TERMINAL</Text>
         <Text style={styles.statusTexto}>{status}</Text>
@@ -70,16 +83,29 @@ export default function GameScreen() {
         <TextInput
           multiline
           style={styles.inputTerminal}
-          placeholder="Ex: direita() / subir() / repetir() para criar um loop"
+          placeholder="Ex: direita(3)\nrepetir()"
           placeholderTextColor="#555"
           value={comandoTexto}
           onChangeText={setComandoTexto}
           autoCapitalize="none"
         />
 
-        <TouchableOpacity style={styles.botaoExecutar} onPress={executarCodigo}>
-          <Text style={styles.textoBotao}>EXECUTAR PROGRAMA</Text>
-        </TouchableOpacity>
+        {/* 4. Layout com dois botões lado a lado */}
+        <View style={styles.botoesContainer}>
+          <TouchableOpacity 
+            style={[styles.botaoBase, styles.botaoExecutar]} 
+            onPress={executarCodigo}
+          >
+            <Text style={styles.textoBotao}>EXECUTAR</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.botaoBase, styles.botaoStop]} 
+            onPress={pararExecucao}
+          >
+            <Text style={styles.textoBotao}>STOP</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -111,12 +137,22 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     textAlignVertical: 'top',
   },
-  botaoExecutar: {
-    backgroundColor: '#00D8FF',
+  botoesContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+  },
+  botaoBase: {
+    flex: 1,
     padding: 12,
     borderRadius: 5,
-    marginTop: 10,
     alignItems: 'center',
+  },
+  botaoExecutar: {
+    backgroundColor: '#00D8FF',
+  },
+  botaoStop: {
+    backgroundColor: '#FF4444', // Vermelho para o Stop
   },
   textoBotao: { fontWeight: 'bold', color: '#000' },
 });
