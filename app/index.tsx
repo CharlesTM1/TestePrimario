@@ -85,7 +85,7 @@ export default function GameScreen() {
         <TextInput
           multiline
           style={styles.inputTerminal}
-          placeholder="repetir {&#10;  direita(2)&#10;  descer(1)&#10;}"
+          placeholder="direita() / direita(1) / descer() / subir() / Função de repetir algo: repetir{ Comandos aqui dentro! }"
           placeholderTextColor="#555"
           value={comandoTexto}
           onChangeText={setComandoTexto}
