@@ -4,18 +4,16 @@ import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-nativ
 export default function GameScreen() {
   const [posicao, setPosicao] = useState({ x: 50, y: 50 });
   const [comandoTexto, setComandoTexto] = useState('');
-  const [status, setStatus] = useState('Aguardando comandos...');
+  const [status, setStatus] = useState('Waiting for commands...');
   
-  // 1. Chave de controle: useRef mantém o valor entre renderizações sem resetar
   const executando = useRef(false);
   const passo = 40;
 
   const esperar = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-  // 2. Função para desligar a chave
   const pararExecucao = () => {
     executando.current = false;
-    setStatus('Execução interrompida!');
+    setStatus('Execution interrupted!');
   };
 
   const executarCodigo = async () => {
@@ -25,7 +23,7 @@ export default function GameScreen() {
     const linhas = comandoTexto.split('\n').filter(l => l.trim() !== '');
     const querRepetir = comandoTexto.toLowerCase().includes('repetir()');
     
-    setStatus('Executando programa...');
+    setStatus('Running program...');
 
     try {
       do {
@@ -44,6 +42,7 @@ export default function GameScreen() {
               await esperar(200);
 
               setPosicao((atual) => {
+                // Comandos permanecem em português
                 if (comando === 'subir') return { ...atual, y: atual.y - passo };
                 if (comando === 'descer') return { ...atual, y: atual.y + passo };
                 if (comando === 'esquerda') return { ...atual, x: atual.x - passo };
@@ -52,7 +51,7 @@ export default function GameScreen() {
               });
             }
           } else if (textoLimpo !== 'repetir()') {
-            setStatus(`Erro de sintaxe em: ${linha}`);
+            setStatus(`Syntax error in: ${linha}`);
             executando.current = false;
             return;
           }
@@ -63,15 +62,12 @@ export default function GameScreen() {
       } while (querRepetir && executando.current);
 
     } finally {
-      // --- ESTA É A MUDANÇA ---
-      // Colocando aqui dentro do 'finally', o terminal apaga 
-      // mesmo que você clique em STOP ou o código termine normal.
       setComandoTexto(''); 
       
-      if (!executando.current && status !== 'Missão cumprida!') {
-        setStatus('Execução interrompida!');
+      if (!executando.current && status !== 'Mission accomplished!') {
+        setStatus('Execution stopped!');
       } else {
-        setStatus('Missão cumprida!');
+        setStatus('Mission accomplished!');
       }
       
       executando.current = false;
@@ -85,7 +81,7 @@ export default function GameScreen() {
       </View>
 
       <View style={styles.terminalContainer}>
-        <Text style={styles.tituloTerminal}>CONSOLE TERMINAL</Text>
+        <Text style={styles.tituloTerminal}>TERMINAL CONSOLE</Text>
         <Text style={styles.statusTexto}>{status}</Text>
         
         <TextInput
@@ -98,13 +94,12 @@ export default function GameScreen() {
           autoCapitalize="none"
         />
 
-        {/* 4. Layout com dois botões lado a lado */}
         <View style={styles.botoesContainer}>
           <TouchableOpacity 
             style={[styles.botaoBase, styles.botaoExecutar]} 
             onPress={executarCodigo}
           >
-            <Text style={styles.textoBotao}>TO EXECUTE</Text>
+            <Text style={styles.textoBotao}>RUN</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -160,7 +155,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#00D8FF',
   },
   botaoStop: {
-    backgroundColor: '#FF4444', // Vermelho para o Stop
+    backgroundColor: '#FF4444',
   },
   textoBotao: { fontWeight: 'bold', color: '#000' },
 });
