@@ -19,7 +19,7 @@ export default function GameScreen() {
   };
 
   const executarCodigo = async () => {
-    if (executando.current) return; // Evita rodar dois ao mesmo tempo
+    if (executando.current || comandoTexto.trim() === '') return;
     
     executando.current = true;
     const linhas = comandoTexto.split('\n').filter(l => l.trim() !== '');
@@ -27,47 +27,55 @@ export default function GameScreen() {
     
     setStatus('Executando programa...');
 
-    do {
-      for (const linha of linhas) {
-        // 3. Verificação crítica: se a chave desligar, sai do loop imediatamente
-        if (!executando.current) break;
+    try {
+      do {
+        for (const linha of linhas) {
+          if (!executando.current) break;
 
-        const textoLimpo = linha.trim().toLowerCase();
-        const match = textoLimpo.match(/(\w+)\((\d*)\)/);
+          const textoLimpo = linha.trim().toLowerCase();
+          const match = textoLimpo.match(/(\w+)\((\d*)\)/);
 
-        if (match) {
-          const comando = match[1];
-          const vezes = match[2] === "" ? 1 : parseInt(match[2]);
+          if (match) {
+            const comando = match[1];
+            const vezes = match[2] === "" ? 1 : parseInt(match[2]);
 
-          for (let i = 0; i < vezes; i++) {
-            if (!executando.current) break; // Checa de novo dentro do laço de repetição
-            await esperar(200);
+            for (let i = 0; i < vezes; i++) {
+              if (!executando.current) break;
+              await esperar(200);
 
-            setPosicao((atual) => {
-              if (comando === 'subir') return { ...atual, y: atual.y - passo };
-              if (comando === 'descer') return { ...atual, y: atual.y + passo };
-              if (comando === 'esquerda') return { ...atual, x: atual.x - passo };
-              if (comando === 'direita') return { ...atual, x: atual.x + passo };
-              return atual;
-            });
+              setPosicao((atual) => {
+                if (comando === 'subir') return { ...atual, y: atual.y - passo };
+                if (comando === 'descer') return { ...atual, y: atual.y + passo };
+                if (comando === 'esquerda') return { ...atual, x: atual.x - passo };
+                if (comando === 'direita') return { ...atual, x: atual.x + passo };
+                return atual;
+              });
+            }
+          } else if (textoLimpo !== 'repetir()') {
+            setStatus(`Erro de sintaxe em: ${linha}`);
+            executando.current = false;
+            return;
           }
-        } else if (textoLimpo !== 'repetir()') {
-          setStatus(`Erro de sintaxe em: ${linha}`);
-          executando.current = false;
-          return;
         }
+        
+        if (querRepetir) await esperar(100);
+
+      } while (querRepetir && executando.current);
+
+    } finally {
+      // --- ESTA É A MUDANÇA ---
+      // Colocando aqui dentro do 'finally', o terminal apaga 
+      // mesmo que você clique em STOP ou o código termine normal.
+      setComandoTexto(''); 
+      
+      if (!executando.current && status !== 'Missão cumprida!') {
+        setStatus('Execução interrompida!');
+      } else {
+        setStatus('Missão cumprida!');
       }
       
-      if (querRepetir) await esperar(100);
-
-    } while (querRepetir && executando.current); // Só repete se a chave estiver ligada
-    
-    if (executando.current) {
-      setComandoTexto(''); 
-      setStatus('Missão cumprida!');
+      executando.current = false;
     }
-    
-    executando.current = false; // Desliga a chave ao final
   };
 
   return (
@@ -96,7 +104,7 @@ export default function GameScreen() {
             style={[styles.botaoBase, styles.botaoExecutar]} 
             onPress={executarCodigo}
           >
-            <Text style={styles.textoBotao}>EXECUTAR</Text>
+            <Text style={styles.textoBotao}>TO EXECUTE</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
